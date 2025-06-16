@@ -1,4 +1,4 @@
 flask
 pandas
 python-dotenv
-line-bot-sdk==2.4.0
+line-bot-sdk==2.4.3
