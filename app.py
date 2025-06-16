@@ -112,28 +112,6 @@ def summarize_game(description: str) -> str:
 
     return "🔍 玩法說明：\n" + "\n".join(summary_parts) if summary_parts else "🔍 玩法說明：尚無明確資訊。"
 
-# 進階玩法規則辨識
-GAME_FEATURE_RULES = {
-    "基本盤面": [r"\d+\s*x\s*\d+", r"\d+\s*reels?", r"\d+\s*rows?"],
-    "支付方式": ["cluster pays", "megaways", "ways to win", "payline"],
-    "免費遊戲": ["free spins?", "scatter", "bonus round"],
-    "wild 特性": ["wild transformation", "walking wild", "sticky wild", "expanding wild"],
-    "特殊功能": ["buy feature", "bonus buy", "orb bonus", "super bonus", "hold and win"]
-}
-
-def advanced_analyze_game(description: str) -> str:
-    desc = description.lower()
-    features = []
-    for category, patterns in GAME_FEATURE_RULES.items():
-        for pattern in patterns:
-            if isinstance(pattern, str) and pattern in desc:
-                features.append(f"• {category}：包含 {pattern}")
-                break
-            elif re.search(pattern, desc):
-                features.append(f"• {category}：符合 {pattern}")
-                break
-    return "📊 進階玩法解析：\n" + "\n".join(features) if features else "⚠️ 無法解析明確玩法資訊"
-
 # 查詢遊戲邏輯
 def search_game(keyword, max_results=3):
     result = bigwinboard_df[bigwinboard_df["Title"].astype(str).str.contains(keyword, case=False, na=False)]
@@ -156,7 +134,6 @@ def search_game(keyword, max_results=3):
 
         feature_summary = analyze_game_features(desc)
         game_summary = summarize_game(desc)
-        advanced_features = advanced_analyze_game(desc)
         stat_block = format_game_stats(row)
 
         message = (
@@ -166,7 +143,6 @@ def search_game(keyword, max_results=3):
             f"📖 遊戲簡介：\n{short_desc}\n\n"
             f"{game_summary}\n\n"
             f"{feature_summary}\n\n"
-            f"{advanced_features}\n\n"
             f"📊 遊戲數據：\n{stat_block}\n\n"
             f"🖼️ 圖片：{img}"
         )
