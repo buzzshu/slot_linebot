@@ -21,7 +21,6 @@ bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features.csv")
 demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
 
 # 分析基本遊戲特徵
-
 def analyze_game_features(description: str) -> str:
     desc = description.lower()
     features = {
@@ -69,25 +68,30 @@ def analyze_game_features(description: str) -> str:
     return "\n\n".join(summary) if summary else "⚠️ 無法從描述中解析出玩法資訊。"
 
 # 遊戲說明整理
-
 def summarize_game(description: str) -> str:
     desc = description.lower()
     summary_parts = []
-    if "5 reels" in desc or "5-reel" in desc:
-        summary_parts.append("• 5 軸 3 列，經典盤面配置。")
-    if "20 paylines" in desc:
+    if re.search(r"\b5[- ]reels?\b", desc):
+        summary_parts.append("• 5 軸盤面，常見配置。")
+    if re.search(r"\b20 paylines?\b", desc):
         summary_parts.append("• 20 條固定賠付線。")
     if "cluster pays" in desc:
         summary_parts.append("• 採用 Cluster Pays 群組支付機制。")
+    if "megaways" in desc:
+        summary_parts.append("• Megaways 機制，連動格數變化增加中獎方式。")
 
     if "wild transformation" in desc:
-        summary_parts.append("• 隨機 Wild 轉換功能，可將多個符號轉為 Wild。")
+        summary_parts.append("• Wild 轉換機制，可將特定符號變為 Wild。")
     if "free spins" in desc:
-        summary_parts.append("• 具備免費旋轉功能，可由 Scatter 符號或特殊圖案觸發。")
+        summary_parts.append("• 免費旋轉功能，由 Scatter 符號或特殊條件觸發。")
     if "symbol to wild" in desc:
-        summary_parts.append("• 特定符號轉為 Wild，持續整個免費遊戲。")
-    if "merlin" in desc or "orb" in desc:
-        summary_parts.append("• Merlin's Orb Bonus 可提供現金獎或更多免費旋轉。")
+        summary_parts.append("• 特定符號可永久轉換為 Wild 進行高配。")
+    if "multiplier" in desc:
+        summary_parts.append("• 可疊加或遞增的倍數增益。")
+    if "mystery symbol" in desc:
+        summary_parts.append("• 神秘符號機制，轉軸後同步顯示相同圖案。")
+    if "buy feature" in desc or "bonus buy" in desc:
+        summary_parts.append("• 可付費直接進入免費遊戲模式。")
 
     max_win_match = re.search(r"(\d{1,3}(,\d{3})*x) the stake", desc)
     if max_win_match:
@@ -120,48 +124,43 @@ def advanced_analyze_game(description: str) -> str:
 
 # 查詢遊戲邏輯
 def search_game(keyword, max_results=3):
-    combined_df = pd.concat([bigwinboard_df, demoslot_df], ignore_index=True)
+    result = bigwinboard_df[bigwinboard_df["Title"].astype(str).str.contains(keyword, case=False, na=False)]
+    if result.empty:
+        result = demoslot_df[demoslot_df["game_name"].astype(str).str.contains(keyword, case=False, na=False)]
 
-    def get_title(row):
-        return str(row.get("Title") or row.get("game_name") or "")
-
-    matches = []
-    for _, row in combined_df.iterrows():
-        title = get_title(row)
-        if keyword.lower() in title.lower():
-            matches.append(row)
-        if len(matches) >= max_results:
-            break
-
-    if not matches:
+    if result.empty:
         return "❌ 找不到相關遊戲。"
 
+    result = result.head(max_results)
     messages = []
-    for row in matches:
+
+    for _, row in result.iterrows():
         name = row.get("Title", row.get("game_name", "未知遊戲"))
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
-        desc = str(row.get("Description") or row.get("description") or "")
-        short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
+        desc = row.get("Description", row.get("description", ""))
         img = row.get("Image", row.get("image_url", "（無圖片）"))
+        short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
+
         feature_summary = analyze_game_features(desc)
         game_summary = summarize_game(desc)
         advanced_features = advanced_analyze_game(desc)
 
         message = (
-            f"🎰 {name}\n"
-            f"🎯 RTP: {rtp}\n"
-            f"📖 {short_desc}\n"
-            f"🖼️ 圖片：{img}\n"
-            f"🔗 {url}\n\n"
-            f"{feature_summary}\n\n{game_summary}\n\n{advanced_features}"
+            f"🎰 遊戲：{name}\n"
+            f"🎯 RTP：{rtp}\n"
+            f"🔗 {url}\n"
+            f"📖 遊戲簡介：\n{short_desc}\n\n"
+            f"{game_summary}\n\n"
+            f"{feature_summary}\n\n"
+            f"{advanced_features}\n\n"
+            f"🖼️ 圖片：{img}"
         )
         messages.append(message)
 
-    return "\n\n" + "\n\n".join(messages)
+    return "\n\n".join(messages)
 
 # 查詢特定機制的遊戲
-
 def search_by_feature(keyword):
     results = []
     keyword = keyword.lower()
@@ -183,12 +182,11 @@ app = Flask(__name__)
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-    print("📩 收到 LINE 請求：", body)  # Debug log
+    print("📩 收到 LINE 請求")
 
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        print("❌ 無效的簽章")
         abort(400)
     return 'OK'
 
@@ -211,4 +209,4 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(debug=True, host="0.0.0.0", port=8080)
