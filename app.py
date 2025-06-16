@@ -9,6 +9,9 @@ from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage, ReplyMessageRequest
 
+import os
+PORT = int(os.environ.get("PORT", 5000))
+
 # 讀取 .env
 load_dotenv()
 
@@ -98,4 +101,4 @@ def search_by_feature(feature):
     return f"🎯 有「{col}」的前幾款遊戲：\n" + "\n".join(["• " + name for name in names])
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=PORT, debug=True)
