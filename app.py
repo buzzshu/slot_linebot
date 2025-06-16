@@ -48,8 +48,7 @@ def analyze_game_features(description: str) -> str:
     features = {
         "🎲 基本玩法": [],
         "💥 特色機制": [],
-        "🛠️ 功能特色": [],
-        "💰 中獎潛力": [],
+        "🛠️ 功能特色": []
     }
     if re.search(r"\d+x\d+", desc):
         match = re.search(r"\d+x\d+", desc)
@@ -78,10 +77,6 @@ def analyze_game_features(description: str) -> str:
         features["🛠️ 功能特色"].append("購買功能")
     if "jackpot" in desc:
         features["🛠️ 功能特色"].append("獎池/大獎")
-
-    maxwin = re.search(r'(\d{1,3}(,\d{3})*x)', desc)
-    if maxwin:
-        features["💰 中獎潛力"].append(f"最大中獎：{maxwin.group()}")
 
     summary = []
     for section, items in features.items():
@@ -115,10 +110,6 @@ def summarize_game(description: str) -> str:
     if "buy feature" in desc or "bonus buy" in desc:
         summary_parts.append("• 可付費直接進入免費遊戲模式。")
 
-    max_win_match = re.search(r"(\d{1,3}(,\d{3})*x) the stake", desc)
-    if max_win_match:
-        summary_parts.append(f"• 最大中獎：{max_win_match.group(1)} 賭注。")
-
     return "🔍 玩法說明：\n" + "\n".join(summary_parts) if summary_parts else "🔍 玩法說明：尚無明確資訊。"
 
 # 進階玩法規則辨識
@@ -127,8 +118,7 @@ GAME_FEATURE_RULES = {
     "支付方式": ["cluster pays", "megaways", "ways to win", "payline"],
     "免費遊戲": ["free spins?", "scatter", "bonus round"],
     "wild 特性": ["wild transformation", "walking wild", "sticky wild", "expanding wild"],
-    "特殊功能": ["buy feature", "bonus buy", "orb bonus", "super bonus", "hold and win"],
-    "中獎潛力": [r"\d{1,3}(,\d{3})*x the stake", "max win"],
+    "特殊功能": ["buy feature", "bonus buy", "orb bonus", "super bonus", "hold and win"]
 }
 
 def advanced_analyze_game(description: str) -> str:
