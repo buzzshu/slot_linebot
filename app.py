@@ -60,17 +60,14 @@ def handle_message(event):
         TextSendMessage(text=reply_text)
     )
 
-def search_game(keyword, max_results=5):
-    # 搜尋 Bigwinboard
+def search_game(keyword, max_results=3):
     result = bigwinboard_df[bigwinboard_df["Title"].str.contains(keyword, case=False, na=False)]
     if result.empty:
-        # 改用 demoslot 搜尋
         result = demoslot_df[demoslot_df["game_name"].str.contains(keyword, case=False, na=False)]
 
     if result.empty:
         return "❌ 找不到相關遊戲。"
 
-    # 限制最多回傳幾筆
     result = result.head(max_results)
 
     messages = []
@@ -78,8 +75,11 @@ def search_game(keyword, max_results=5):
         name = row.get("Title", row.get("game_name", "未知遊戲"))
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
-        line = f"🎰 {name}\n🎯 RTP: {rtp}\n🔗 {url}"
-        messages.append(line)
+        desc = row.get("Description", row.get("description", ""))
+        short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
+
+        msg = f"🎰 {name}\n🎯 RTP: {rtp}\n📖 {short_desc}\n🔗 {url}"
+        messages.append(msg)
 
     return "\n\n".join(messages)
 
