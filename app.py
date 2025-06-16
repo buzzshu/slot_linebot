@@ -20,6 +20,28 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features.csv")
 demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
 
+# 分析遊戲統計欄位
+STAT_FIELDS = [
+    ("Reels", "🎰 Reels"),
+    ("Rows", "🎰 Rows"),
+    ("Paylines", "📈 Paylines"),
+    ("Hit Frequency", "🎯 Hit Freq"),
+    ("Free Spins Frequency", "🎯 Free Spins Freq"),
+    ("Max Win", "💰 Max Win"),
+    ("Max Win Probability", "📊 Max Win Probability"),
+    ("Volatility", "⚖️ Volatility"),
+    ("Min/Max Bet", "💵 Min/Max Bet"),
+    ("Release Date", "🗓️ Release Date")
+]
+
+def format_game_stats(row) -> str:
+    lines = []
+    for key, label in STAT_FIELDS:
+        value = row.get(key)
+        if pd.notna(value):
+            lines.append(f"{label}: {value}")
+    return "\n".join(lines)
+
 # 分析基本遊戲特徵
 def analyze_game_features(description: str) -> str:
     desc = description.lower()
@@ -145,6 +167,7 @@ def search_game(keyword, max_results=3):
         feature_summary = analyze_game_features(desc)
         game_summary = summarize_game(desc)
         advanced_features = advanced_analyze_game(desc)
+        stat_block = format_game_stats(row)
 
         message = (
             f"🎰 遊戲：{name}\n"
@@ -154,6 +177,7 @@ def search_game(keyword, max_results=3):
             f"{game_summary}\n\n"
             f"{feature_summary}\n\n"
             f"{advanced_features}\n\n"
+            f"📊 遊戲數據：\n{stat_block}\n\n"
             f"🖼️ 圖片：{img}"
         )
         messages.append(message)
