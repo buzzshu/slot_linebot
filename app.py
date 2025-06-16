@@ -60,21 +60,28 @@ def handle_message(event):
         TextSendMessage(text=reply_text)
     )
 
-def search_game(keyword):
+def search_game(keyword, max_results=5):
+    # 搜尋 Bigwinboard
     result = bigwinboard_df[bigwinboard_df["Title"].str.contains(keyword, case=False, na=False)]
     if result.empty:
+        # 改用 demoslot 搜尋
         result = demoslot_df[demoslot_df["game_name"].str.contains(keyword, case=False, na=False)]
 
     if result.empty:
-        return "❌ 找不到這款遊戲。"
+        return "❌ 找不到相關遊戲。"
 
-    row = result.iloc[0]
-    name = row.get("Title", row.get("game_name", "未知遊戲"))
-    rtp = row.get("RTP", "N/A")
-    vol = row.get("Volatility", "N/A")
-    url = row.get("URL", row.get("url", ""))
+    # 限制最多回傳幾筆
+    result = result.head(max_results)
 
-    return f"🎰 遊戲：{name}\n🎯 RTP：{rtp}\n🔥 波動性：{vol}\n🔗 {url}"
+    messages = []
+    for _, row in result.iterrows():
+        name = row.get("Title", row.get("game_name", "未知遊戲"))
+        rtp = row.get("RTP", "N/A")
+        url = row.get("URL", row.get("url", ""))
+        line = f"🎰 {name}\n🎯 RTP: {rtp}\n🔗 {url}"
+        messages.append(line)
+
+    return "\n\n".join(messages)
 
 def search_by_feature(feature):
     candidates = [col for col in bigwinboard_df.columns if feature.lower() in col.lower()]
