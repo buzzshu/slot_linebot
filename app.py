@@ -120,17 +120,24 @@ def advanced_analyze_game(description: str) -> str:
 
 # 查詢遊戲邏輯
 def search_game(keyword, max_results=3):
-    result = bigwinboard_df[bigwinboard_df["Title"].str.contains(keyword, case=False, na=False)]
-    if result.empty:
-        result = demoslot_df[demoslot_df["game_name"].str.contains(keyword, case=False, na=False)]
+    combined_df = pd.concat([bigwinboard_df, demoslot_df], ignore_index=True)
 
-    if result.empty:
+    def get_title(row):
+        return row.get("Title") or row.get("game_name") or ""
+
+    matches = []
+    for _, row in combined_df.iterrows():
+        title = get_title(row)
+        if keyword.lower() in title.lower():
+            matches.append(row)
+        if len(matches) >= max_results:
+            break
+
+    if not matches:
         return "❌ 找不到相關遊戲。"
 
-    result = result.head(max_results)
     messages = []
-
-    for _, row in result.iterrows():
+    for row in matches:
         name = row.get("Title", row.get("game_name", "未知遊戲"))
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
