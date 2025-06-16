@@ -123,7 +123,7 @@ def search_game(keyword, max_results=3):
     combined_df = pd.concat([bigwinboard_df, demoslot_df], ignore_index=True)
 
     def get_title(row):
-        return row.get("Title") or row.get("game_name") or ""
+        return str(row.get("Title") or row.get("game_name") or "")
 
     matches = []
     for _, row in combined_df.iterrows():
@@ -141,7 +141,7 @@ def search_game(keyword, max_results=3):
         name = row.get("Title", row.get("game_name", "未知遊戲"))
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
-        desc = row.get("Description", row.get("description", ""))
+        desc = str(row.get("Description") or row.get("description") or "")
         short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
         img = row.get("Image", row.get("image_url", "（無圖片）"))
         feature_summary = analyze_game_features(desc)
@@ -183,11 +183,12 @@ app = Flask(__name__)
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-    print("📩 收到 LINE 請求：", body)  # <-- 新增這行
+    print("📩 收到 LINE 請求：", body)  # Debug log
 
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        print("❌ 無效的簽章")
         abort(400)
     return 'OK'
 
