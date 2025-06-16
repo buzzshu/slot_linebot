@@ -1,4 +1,5 @@
 import os
+import re
 import pandas as pd
 from flask import Flask, request, abort
 from dotenv import load_dotenv
@@ -69,19 +70,74 @@ def search_game(keyword, max_results=3):
         return "❌ 找不到相關遊戲。"
 
     result = result.head(max_results)
-
     messages = []
+
     for _, row in result.iterrows():
         name = row.get("Title", row.get("game_name", "未知遊戲"))
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
         desc = row.get("Description", row.get("description", ""))
         short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
+        feature_summary = analyze_game_features(desc)
 
-        msg = f"🎰 {name}\n🎯 RTP: {rtp}\n📖 {short_desc}\n🔗 {url}"
-        messages.append(msg)
+        message = (
+            f"🎰 {name}\n"
+            f"🎯 RTP: {rtp}\n"
+            f"📖 {short_desc}\n"
+            f"🔗 {url}\n\n"
+            f"📊 遊戲分析：\n{feature_summary}"
+        )
+        messages.append(message)
 
-    return "\n\n".join(messages)
+    return "\n\n" + "\n\n".join(messages)
+
+def analyze_game_features(description: str) -> str:
+    desc = description.lower()
+
+    features = {
+        "🎲 基本玩法": [],
+        "💥 特色機制": [],
+        "🛠️ 功能特色": [],
+        "💰 中獎潛力": [],
+    }
+
+    if re.search(r"\d+x\d+", desc):
+        match = re.search(r"\d+x\d+", desc)
+        features["🎲 基本玩法"].append(f"格子結構：{match.group()}")
+    if "cluster pays" in desc:
+        features["🎲 基本玩法"].append("Cluster Pays")
+    if "megaways" in desc:
+        features["🎲 基本玩法"].append("Megaways")
+    if "ways to win" in desc:
+        features["🎲 基本玩法"].append("多線中獎")
+
+    if "tumble" in desc or "cascade" in desc:
+        features["💥 特色機制"].append("滾落/連擊機制")
+    if "expanding symbol" in desc:
+        features["💥 特色機制"].append("擴展符號")
+    if "sticky" in desc:
+        features["💥 特色機制"].append("黏性符號")
+    if "walking wild" in desc:
+        features["💥 特色機制"].append("移動 wild")
+
+    if "free spin" in desc:
+        features["🛠️ 功能特色"].append("免費旋轉")
+    if "multiplier" in desc:
+        features["🛠️ 功能特色"].append("乘數機制")
+    if "bonus buy" in desc or "buy feature" in desc:
+        features["🛠️ 功能特色"].append("購買功能")
+    if "jackpot" in desc:
+        features["🛠️ 功能特色"].append("獎池/大獎")
+
+    maxwin = re.search(r'(\d{1,3}(,\d{3})+x)', desc)
+    if maxwin:
+        features["💰 中獎潛力"].append(f"最大中獎：{maxwin.group()}")
+
+    summary = []
+    for section, items in features.items():
+        if items:
+            summary.append(f"{section}：\n• " + "\n• ".join(items))
+    return "\n\n".join(summary) if summary else "⚠️ 無法從描述中解析出玩法資訊。"
 
 def search_by_feature(feature):
     candidates = [col for col in bigwinboard_df.columns if feature.lower() in col.lower()]
