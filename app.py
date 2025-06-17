@@ -12,9 +12,8 @@ load_dotenv()
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 
+# 初始化 Flask 與 LINE Bot
 app = Flask(__name__)
-
-# 初始化 LINE Bot
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
@@ -151,8 +150,7 @@ def handle_message(event):
             if pd.notna(row.get("Image URL")):
                 replies.append(ImageSendMessage(original_content_url=row["Image URL"], preview_image_url=row["Image URL"]))
         if replies:
-            for reply in replies[:5]:
-                line_bot_api.reply_message(event.reply_token, reply)
+            line_bot_api.reply_message(event.reply_token, replies[:5])
         else:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"找不到「{keyword}」相關的遊戲。"))
         return
