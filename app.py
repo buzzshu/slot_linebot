@@ -17,7 +17,7 @@ line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 # 載入遊戲資料
-bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features.csv")
+bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv")
 demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
 
 # 若資料有 Score 欄位，依照 Score 進行排序
@@ -31,8 +31,8 @@ STAT_FIELDS = [
     ("Reels", "🌀 Reels"),
     ("Rows", "🌀 Rows"),
     ("Paylines", "📈 Paylines"),
-    ("Hit Frequency", "🎯 Hit Freq"),
-    ("Free Spins Frequency", "🎯 Free Spins Freq"),
+    ("Hit Freq", "🎯 Hit Freq"),
+    ("Free Spins Freq", "🎯 Free Spins Freq"),
     ("Max Win", "💰 Max Win"),
     ("Max Win Probability", "📊 Max Win Probability"),
     ("Volatility", "⚖️ Volatility"),
@@ -143,6 +143,9 @@ def search_game(keyword, max_results=5):
         game_summary = summarize_game(desc)
         stat_block = format_game_stats(row)
 
+        similar = row.get("Top Similar Games")
+        similar_line = f"\n🔁 類似推薦：{similar}" if pd.notna(similar) else ""
+
         text_msg = (
             f"🌀 遊戲：{name}\n"
             f"🎯 RTP：{rtp}\n"
@@ -151,6 +154,7 @@ def search_game(keyword, max_results=5):
             f"{game_summary}\n\n"
             f"{feature_summary}\n\n"
             f"📊 遊戲數據：\n{stat_block}"
+            f"{similar_line}"
         )
 
         if img and img.startswith("http"):
