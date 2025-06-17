@@ -176,8 +176,16 @@ def handle_message(event):
         keyword = user_input.replace("查遊戲", "").strip()
         if keyword:
             replies = search_game(keyword)
+            if isinstance(replies, str):
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=replies))
+                return
             flat_replies = [item for sublist in replies for item in sublist]
-            line_bot_api.reply_message(event.reply_token, flat_replies)
+            if len(flat_replies) <= 5:
+                line_bot_api.reply_message(event.reply_token, flat_replies)
+            else:
+                line_bot_api.reply_message(event.reply_token, flat_replies[:5])
+                for i in range(5, len(flat_replies), 5):
+                    line_bot_api.push_message(event.source.user_id, flat_replies[i:i+5])
         return
     # 不處理其他訊息，讓 bot 靜默
     return
