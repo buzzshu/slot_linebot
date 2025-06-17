@@ -5,7 +5,7 @@ from flask import Flask, request, abort
 from dotenv import load_dotenv
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
 # 載入環境變數
 load_dotenv()
@@ -129,41 +129,29 @@ def search_game(keyword, max_results=3):
         rtp = row.get("RTP", "N/A")
         url = row.get("URL", row.get("url", ""))
         desc = row.get("Description", row.get("description", ""))
-        img = row.get("Image", row.get("image_url", "（無圖片）"))
+        img = row.get("Image", row.get("image_url", ""))
         short_desc = desc[:200].strip().replace("\n", " ") + "..." if len(desc) > 200 else desc.strip()
 
         feature_summary = analyze_game_features(desc)
         game_summary = summarize_game(desc)
         stat_block = format_game_stats(row)
 
-        message = (
+        text_msg = (
             f"🎰 遊戲：{name}\n"
             f"🎯 RTP：{rtp}\n"
             f"🔗 {url}\n"
             f"📖 遊戲簡介：\n{short_desc}\n\n"
             f"{game_summary}\n\n"
             f"{feature_summary}\n\n"
-            f"📊 遊戲數據：\n{stat_block}\n\n"
-            f"🖼️ 圖片：{img}"
+            f"📊 遊戲數據：\n{stat_block}"
         )
-        messages.append(message)
 
-    return "\n\n".join(messages)
+        if img and img.startswith("http"):
+            messages.append([TextSendMessage(text=text_msg), ImageSendMessage(original_content_url=img, preview_image_url=img)])
+        else:
+            messages.append([TextSendMessage(text=text_msg)])
 
-# 查詢特定機制的遊戲
-def search_by_feature(keyword):
-    results = []
-    keyword = keyword.lower()
-    combined_df = pd.concat([bigwinboard_df, demoslot_df], ignore_index=True)
-    for _, row in combined_df.iterrows():
-        desc = str(row.get("Description") or row.get("description") or "").lower()
-        name = row.get("Title", row.get("game_name", "未知遊戲"))
-        url = row.get("URL", row.get("url", ""))
-        if keyword in desc:
-            results.append(f"🎰 {name}\n🔗 {url}")
-        if len(results) >= 10:
-            break
-    return "\n\n".join(results) if results else "❌ 找不到包含該機制的遊戲。"
+    return messages
 
 # 建立 Flask 應用
 app = Flask(__name__)
@@ -186,17 +174,17 @@ def handle_message(event):
     user_input = event.message.text.strip()
     if user_input.startswith("查遊戲"):
         keyword = user_input.replace("查遊戲", "").strip()
-        reply = search_game(keyword)
+        replies = search_game(keyword)
+        for msg in replies:
+            line_bot_api.reply_message(event.reply_token, msg)
+        return
     elif user_input.startswith("查機制"):
         keyword = user_input.replace("查機制", "").strip()
         reply = search_by_feature(keyword)
     else:
         reply = "請輸入：\n•『查遊戲 遊戲名稱』來查詢遊戲\n•『查機制 機制關鍵字』來查詢包含某機制的遊戲"
 
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply)
-    )
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)
