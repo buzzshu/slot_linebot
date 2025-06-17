@@ -44,6 +44,7 @@ SUPPORTED_FEATURES = [
     "megaways", "cluster", "free spins", "walking wild", "expanding symbol"
 ]
 
+
 def format_game_stats(row) -> str:
     lines = []
     for key, label in STAT_FIELDS:
@@ -51,6 +52,7 @@ def format_game_stats(row) -> str:
         if pd.notna(value):
             lines.append(f"{label}: {value}")
     return "\n".join(lines)
+
 
 def analyze_game_features(description: str) -> str:
     desc = description.lower()
@@ -93,17 +95,21 @@ def analyze_game_features(description: str) -> str:
             summary.append(f"{section}：\n• " + "\n• ".join(items))
     return "\n\n".join(summary) if summary else "⚠️ 無法從描述中解析出玩法資訊。"
 
+
 def get_supported_mechanisms() -> str:
     return "🎮 可查詢的機制類型包括：\n" + "\n".join([f"• {kw}" for kw in SUPPORTED_FEATURES])
+
 
 def get_supported_commands() -> str:
     return (
         "📘 支援指令一覽：\n"
         "• 查遊戲 xxx\n"
+        "• 查廠商 xxx\n"
         "• 查機制 xxx\n"
         "• 查機制（列出支援類型）\n"
         "• 查指令"
     )
+
 
 def search_feature(keyword: str) -> str:
     matched = bigwinboard_df[bigwinboard_df['Description'].str.contains(keyword, case=False, na=False)]
@@ -111,6 +117,15 @@ def search_feature(keyword: str) -> str:
         return f"❌ 找不到包含「{keyword}」機制的遊戲。"
     titles = matched['Title'].head(10).tolist()
     return f"🎮 包含「{keyword}」機制的遊戲：\n" + "\n".join([f"• {title}" for title in titles])
+
+
+def search_games_by_provider(provider: str) -> str:
+    matched = bigwinboard_df[bigwinboard_df['Provider'].str.contains(provider, case=False, na=False)]
+    if matched.empty:
+        return f"❌ 找不到由「{provider}」提供的遊戲。"
+    titles = matched['Title'].head(10).tolist()
+    return f"🎮 {provider} 遊戲一覽：\n" + "\n".join([f"• {title}" for title in titles])
+
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -122,6 +137,7 @@ def callback():
     except InvalidSignatureError:
         abort(400)
     return 'OK'
+
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -164,6 +180,15 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
 
+    elif user_input.startswith("查廠商"):
+        keyword = user_input.replace("查廠商", "").strip()
+        if not keyword:
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請輸入廠商名稱，例如：查廠商 pragmatic"))
+            return
+        reply_text = search_games_by_provider(keyword)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
+        return
+
     elif user_input in ["機制選項", "支援機制"]:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_mechanisms()))
         return
@@ -173,6 +198,7 @@ def handle_message(event):
         return
 
     return
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)
