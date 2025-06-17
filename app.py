@@ -133,46 +133,42 @@ def handle_message(event):
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請輸入遊戲名稱，例如：查遊戲 bonanza"))
             return
         matches = bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)].head(5)
-        replies = []
+        reply_batches = []
+
         for _, row in matches.iterrows():
-            texts = [f"🎠 遊戲：{row['Title']}"]
+            # 文字區塊
+            texts = [f"🎰 遊戲：{row['Title']}"]
             if pd.notna(row.get("RTP")):
                 texts.append(f"🎯 RTP：{row['RTP']}")
             if pd.notna(row.get("URL")):
                 texts.append(f"🔗 {row['URL']}")
             if pd.notna(row.get("Description")):
-                texts.append(f"📖 遊戲簡介：\n{row['Description'][:100]}...")
-            texts.append("🔍 玩法說明：\n" + analyze_game_features(row.get("Description", "")))
+                desc = row["Description"]
+                texts.append(f"📖 遊戲簡介：\n{desc[:120]}{'...' if len(desc)>120 else ''}")
+                texts.append("🔍 玩法說明：\n" + analyze_game_features(desc))
             texts.append(format_game_stats(row))
+
             if pd.notna(row.get("Similar Titles")):
-                texts.append("🔁 類似遊戲推薦：\n" + row["Similar Titles"])
-            replies.append(TextSendMessage("\n\n".join(texts)))
+                similar = row["Similar Titles"]
+                texts.append("🔁 類似遊戲推薦：\n" + "\n".join(f"• {t.strip()}" for t in similar.split(",")[:5]))
+
+            # 將文字訊息加入批次
+            reply_batches.append(TextSendMessage("\n\n".join(texts)))
+
+            # 如果有圖片，加入圖片訊息
             if pd.notna(row.get("Image URL")):
-                replies.append(ImageSendMessage(original_content_url=row["Image URL"], preview_image_url=row["Image URL"]))
-        if replies:
-            line_bot_api.reply_message(event.reply_token, replies[:5])
+                image_url = row["Image URL"]
+                reply_batches.append(ImageSendMessage(
+                    original_content_url=image_url,
+                    preview_image_url=image_url
+                ))
+
+        if reply_batches:
+            # 回傳最多 5 則訊息（LINE 限制）
+            line_bot_api.reply_message(event.reply_token, reply_batches[:5])
         else:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=f"找不到「{keyword}」相關的遊戲。"))
         return
-
-    elif user_input.startswith("查機制"):
-        keyword = user_input.replace("查機制", "").strip()
-        if not keyword:
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_mechanisms()))
-            return
-        reply_text = search_feature(keyword)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
-        return
-
-    elif user_input in ["機制選項", "支援機制"]:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_mechanisms()))
-        return
-
-    elif user_input in ["指令", "查指令"]:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_commands()))
-        return
-
-    return
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)
