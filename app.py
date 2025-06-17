@@ -163,7 +163,7 @@ def handle_message(event):
             if pd.notna(row.get("Top Similar Games")):
                 texts.append("🔁 類似遊戲推薦：\n" + row["Top Similar Games"])
             replies.append(TextSendMessage("\n\n".join(texts)))
-            if pd.notna(row.get("Image URL")):
+            if pd.notna(row.get("Image")):
                 replies.append(ImageSendMessage(original_content_url=row["Image"], preview_image_url=row["Image"]))
         if replies:
             line_bot_api.reply_message(event.reply_token, replies[:5])
