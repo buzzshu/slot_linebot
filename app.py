@@ -176,8 +176,8 @@ def handle_message(event):
         keyword = user_input.replace("查遊戲", "").strip()
         if keyword:
             replies = search_game(keyword)
-            for msg in replies:
-                line_bot_api.reply_message(event.reply_token, msg)
+            flat_replies = [item for sublist in replies for item in sublist]
+            line_bot_api.reply_message(event.reply_token, flat_replies)
         return
     # 不處理其他訊息，讓 bot 靜默
     return
