@@ -160,11 +160,11 @@ def handle_message(event):
                 texts.append(f"📖 遊戲簡介：\n{row['Description'][:100]}...")
             texts.append("🔍 玩法說明：\n" + analyze_game_features(row.get("Description", "")))
             texts.append(format_game_stats(row))
-            if pd.notna(row.get("Similar Titles")):
-                texts.append("🔁 類似遊戲推薦：\n" + row["Similar Titles"])
+            if pd.notna(row.get("Top Similar Games")):
+                texts.append("🔁 類似遊戲推薦：\n" + row["Top Similar Games"])
             replies.append(TextSendMessage("\n\n".join(texts)))
             if pd.notna(row.get("Image URL")):
-                replies.append(ImageSendMessage(original_content_url=row["Image URL"], preview_image_url=row["Image URL"]))
+                replies.append(ImageSendMessage(original_content_url=row["Image"], preview_image_url=row["Image"]))
         if replies:
             line_bot_api.reply_message(event.reply_token, replies[:5])
         else:
