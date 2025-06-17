@@ -20,10 +20,16 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features.csv")
 demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
 
+# 若資料有 Score 欄位，依照 Score 進行排序
+if "Score" in bigwinboard_df.columns:
+    bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
+if "Score" in demoslot_df.columns:
+    demoslot_df = demoslot_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
+
 # 分析遊戲統計欄位
 STAT_FIELDS = [
-    ("Reels", "🎰 Reels"),
-    ("Rows", "🎰 Rows"),
+    ("Reels", "🌀 Reels"),
+    ("Rows", "🌀 Rows"),
     ("Paylines", "📈 Paylines"),
     ("Hit Frequency", "🎯 Hit Freq"),
     ("Free Spins Frequency", "🎯 Free Spins Freq"),
@@ -52,7 +58,7 @@ def analyze_game_features(description: str) -> str:
     }
     if re.search(r"\d+x\d+", desc):
         match = re.search(r"\d+x\d+", desc)
-        features["🎲 基本玩法"].append(f"格子結構：{match.group()}")
+        features["🎲 基本玩法"].append(f"格子組合：{match.group()}")
     if "cluster pays" in desc:
         features["🎲 基本玩法"].append("Cluster Pays")
     if "megaways" in desc:
@@ -110,10 +116,10 @@ def summarize_game(description: str) -> str:
     if "buy feature" in desc or "bonus buy" in desc:
         summary_parts.append("• 可付費直接進入免費遊戲模式。")
 
-    return "🔍 玩法說明：\n" + "\n".join(summary_parts) if summary_parts else "🔍 玩法說明：尚無明確資訊。"
+    return "🔍 玩法說明：\n" + "\n".join(summary_parts) if summary_parts else "🔍 玩法說明：未上傳明確資訊。"
 
 # 查詢遊戲邏輯
-def search_game(keyword, max_results=3):
+def search_game(keyword, max_results=5):
     result = bigwinboard_df[bigwinboard_df["Title"].astype(str).str.contains(keyword, case=False, na=False)]
     if result.empty:
         result = demoslot_df[demoslot_df["game_name"].astype(str).str.contains(keyword, case=False, na=False)]
@@ -121,6 +127,7 @@ def search_game(keyword, max_results=3):
     if result.empty:
         return "❌ 找不到相關遊戲。"
 
+    result = result.sort_values(by="Score", ascending=False, na_position='last') if "Score" in result.columns else result
     result = result.head(max_results)
     messages = []
 
@@ -137,7 +144,7 @@ def search_game(keyword, max_results=3):
         stat_block = format_game_stats(row)
 
         text_msg = (
-            f"🎰 遊戲：{name}\n"
+            f"🌀 遊戲：{name}\n"
             f"🎯 RTP：{rtp}\n"
             f"🔗 {url}\n"
             f"📖 遊戲簡介：\n{short_desc}\n\n"
