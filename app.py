@@ -174,17 +174,13 @@ def handle_message(event):
     user_input = event.message.text.strip()
     if user_input.startswith("查遊戲"):
         keyword = user_input.replace("查遊戲", "").strip()
-        replies = search_game(keyword)
-        for msg in replies:
-            line_bot_api.reply_message(event.reply_token, msg)
+        if keyword:
+            replies = search_game(keyword)
+            for msg in replies:
+                line_bot_api.reply_message(event.reply_token, msg)
         return
-    elif user_input.startswith("查機制"):
-        keyword = user_input.replace("查機制", "").strip()
-        reply = search_by_feature(keyword)
-    else:
-        reply = "請輸入：\n•『查遊戲 遊戲名稱』來查詢遊戲\n•『查機制 機制關鍵字』來查詢包含某機制的遊戲"
-
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    # 不處理其他訊息，讓 bot 靜默
+    return
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)
