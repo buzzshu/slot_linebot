@@ -7,16 +7,23 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
 
-# 初始化
+# 載入環境變數
 load_dotenv()
-app = Flask(__name__)
-line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
-handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 
-# 載入資料
+# 初始化 LINE Bot
+line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
+# 載入遊戲資料
 bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv")
+demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
+
 if "Score" in bigwinboard_df.columns:
-    bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False).reset_index(drop=True)
+    bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
+if "Score" in demoslot_df.columns:
+    demoslot_df = demoslot_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
 
 STAT_FIELDS = [
     ("Reels", "🌀 Reels"),
@@ -36,11 +43,12 @@ SUPPORTED_FEATURES = [
     "megaways", "cluster", "free spins", "walking wild", "expanding symbol"
 ]
 
-def format_game_stats(row):
+def format_game_stats(row) -> str:
     lines = []
     for key, label in STAT_FIELDS:
-        if pd.notna(row.get(key, "")):
-            lines.append(f"{label}: {row[key]}")
+        value = row.get(key)
+        if pd.notna(value):
+            lines.append(f"{label}: {value}")
     return "\n".join(lines)
 
 def analyze_game_features(description: str) -> str:
@@ -50,16 +58,17 @@ def analyze_game_features(description: str) -> str:
         "💥 特色機制": [],
         "🛠️ 功能特色": []
     }
-
-    if match := re.search(r"\d+\s*[xX]\s*\d+", desc):
-        features["🎲 基本玩法"].append(f"格子組合：{match.group().replace(' ', '')}")
+    if re.search(r"\d+x\d+", desc):
+        match = re.search(r"\d+x\d+", desc)
+        features["🎲 基本玩法"].append(f"格子組合：{match.group()}")
     if "cluster pays" in desc:
         features["🎲 基本玩法"].append("Cluster Pays")
     if "megaways" in desc:
         features["🎲 基本玩法"].append("Megaways")
     if "ways to win" in desc:
         features["🎲 基本玩法"].append("多線中獎")
-    if any(w in desc for w in ["tumble", "cascade"]):
+
+    if "tumble" in desc or "cascade" in desc:
         features["💥 特色機制"].append("滾落/連擊機制")
     if "expanding symbol" in desc:
         features["💥 特色機制"].append("擴展符號")
@@ -67,6 +76,7 @@ def analyze_game_features(description: str) -> str:
         features["💥 特色機制"].append("黏性符號")
     if "walking wild" in desc:
         features["💥 特色機制"].append("移動 wild")
+
     if "free spin" in desc:
         features["🛠️ 功能特色"].append("免費旋轉")
     if "multiplier" in desc:
@@ -80,12 +90,12 @@ def analyze_game_features(description: str) -> str:
     for section, items in features.items():
         if items:
             summary.append(f"{section}：\n• " + "\n• ".join(items))
-    return "\n\n".join(summary)
+    return "\n\n".join(summary) if summary else "⚠️ 無法從描述中解析出玩法資訊。"
 
-def get_supported_mechanisms():
+def get_supported_mechanisms() -> str:
     return "🎮 可查詢的機制類型包括：\n" + "\n".join([f"• {kw}" for kw in SUPPORTED_FEATURES])
 
-def get_supported_commands():
+def get_supported_commands() -> str:
     return (
         "📘 支援指令一覽：\n"
         "• 查遊戲 xxx\n"
@@ -93,29 +103,6 @@ def get_supported_commands():
         "• 查機制（列出支援類型）\n"
         "• 查指令"
     )
-
-def search_game(keyword: str) -> list:
-    matches = bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)].head(5)
-    results = []
-    for _, row in matches.iterrows():
-        parts = [f"🎰 遊戲：{row['Title']}"]
-        if pd.notna(row.get('RTP')):
-            parts.append(f"🎯 RTP：{row['RTP']}")
-        if pd.notna(row.get('URL')):
-            parts.append(f"🔗 {row['URL']}")
-        if pd.notna(row.get("Description")):
-            parts.append(f"📖 遊戲簡介：\n{row['Description'][:100]}...")
-
-        if pd.notna(row.get("Image URL")):
-            results.append(ImageSendMessage(original_content_url=row["Image URL"], preview_image_url=row["Image URL"]))
-
-        parts.append("🔍 玩法說明：\n" + analyze_game_features(row.get("Description", "")))
-        parts.append(format_game_stats(row))
-
-        if pd.notna(row.get("Similar Titles")):
-            parts.append("🔁 類似遊戲推薦：\n" + row["Similar Titles"])
-        results.append(TextSendMessage("\n\n".join(parts[:5])))  # 避免超出 LINE 限制
-    return results
 
 def search_feature(keyword: str) -> str:
     matched = bigwinboard_df[bigwinboard_df['Description'].str.contains(keyword, case=False, na=False)]
@@ -144,7 +131,23 @@ def handle_message(event):
         if not keyword:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請輸入遊戲名稱，例如：查遊戲 bonanza"))
             return
-        replies = search_game(keyword)
+        matches = bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)].head(5)
+        replies = []
+        for _, row in matches.iterrows():
+            texts = [f"🎠 遊戲：{row['Title']}"]
+            if pd.notna(row.get("RTP")):
+                texts.append(f"🎯 RTP：{row['RTP']}")
+            if pd.notna(row.get("URL")):
+                texts.append(f"🔗 {row['URL']}")
+            if pd.notna(row.get("Description")):
+                texts.append(f"📖 遊戲簡介：\n{row['Description'][:100]}...")
+            texts.append("🔍 玩法說明：\n" + analyze_game_features(row.get("Description", "")))
+            texts.append(format_game_stats(row))
+            if pd.notna(row.get("Similar Titles")):
+                texts.append("🔁 類似遊戲推薦：\n" + row["Similar Titles"])
+            replies.append(TextSendMessage("\n\n".join(texts)))
+            if pd.notna(row.get("Image URL")):
+                replies.append(ImageSendMessage(original_content_url=row["Image URL"], preview_image_url=row["Image URL"]))
         if replies:
             for reply in replies[:5]:
                 line_bot_api.reply_message(event.reply_token, reply)
@@ -156,22 +159,20 @@ def handle_message(event):
         keyword = user_input.replace("查機制", "").strip()
         if not keyword:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_mechanisms()))
-        else:
-            reply = search_feature(keyword)
-            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+            return
+        reply_text = search_feature(keyword)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_text))
         return
 
     elif user_input in ["機制選項", "支援機制"]:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_mechanisms()))
         return
 
-    elif user_input in ["查指令", "指令"]:
+    elif user_input in ["指令", "查指令"]:
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_supported_commands()))
         return
 
-    # 忽略不合法指令
     return
-
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8080)
