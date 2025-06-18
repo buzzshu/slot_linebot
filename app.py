@@ -156,8 +156,10 @@ def handle_message(event):
         if not keyword:
             line_bot_api.reply_message(event.reply_token, TextSendMessage(text="請輸入遊戲名稱，例如：查遊戲 bonanza"))
             return
-        matches = bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)].head(5)
-        replies = []
+        matches = pd.concat([
+            bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)],
+            demoslot_df[demoslot_df['Title'].str.contains(keyword, case=False, na=False)]
+        ]).head(5)        replies = []
         for _, row in matches.iterrows():
             texts = [f"🎰 遊戲：{row['Title']}"]
             if pd.notna(row.get("RTP")):
