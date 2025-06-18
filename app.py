@@ -25,9 +25,9 @@ except UnicodeDecodeError:
 
 # 嘗試使用 utf-8-sig 載入 demoslot 檔案
 try:
-    demoslot_df = pd.read_csv("demoslot_games_with_data_similar_title.csv", encoding="utf-8-sig")
+    demoslot_df = pd.read_csv("demoslot_games_with_similar_titles.csv", encoding="utf-8-sig")
 except UnicodeDecodeError:
-    demoslot_df = pd.read_csv("demoslot_games_with_data_similar_title.csv", encoding="ISO-8859-1")
+    demoslot_df = pd.read_csv("demoslot_games_with_similar_titles.csv", encoding="ISO-8859-1")
 
 if "Score" in bigwinboard_df.columns:
     bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
