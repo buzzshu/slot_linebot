@@ -19,7 +19,7 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 # 載入遊戲資料
 bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv")
-demoslot_df = pd.read_csv("demoslot_games_full_data.csv")
+demoslot_df = pd.read_csv("demoslot_games_full_data_similar.csv")
 
 if "Score" in bigwinboard_df.columns:
     bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
