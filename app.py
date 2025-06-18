@@ -18,8 +18,16 @@ line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 # 載入遊戲資料
-bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv")
-demoslot_df = pd.read_csv("demoslot_games_full_data_similar.csv")
+try:
+    bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv", encoding="utf-8-sig")
+except UnicodeDecodeError:
+    bigwinboard_df = pd.read_csv("bigwinboard_slots_with_full_features_with_similar.csv", encoding="ISO-8859-1")
+
+# 嘗試使用 utf-8-sig 載入 demoslot 檔案
+try:
+    demoslot_df = pd.read_csv("demoslot_games_full_data_similar.csv", encoding="utf-8-sig")
+except UnicodeDecodeError:
+    demoslot_df = pd.read_csv("demoslot_games_full_data_similar.csv", encoding="ISO-8859-1")
 
 if "Score" in bigwinboard_df.columns:
     bigwinboard_df = bigwinboard_df.sort_values(by="Score", ascending=False, na_position='last').reset_index(drop=True)
