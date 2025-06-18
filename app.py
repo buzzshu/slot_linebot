@@ -159,7 +159,8 @@ def handle_message(event):
         matches = pd.concat([
             bigwinboard_df[bigwinboard_df['Title'].str.contains(keyword, case=False, na=False)],
             demoslot_df[demoslot_df['Title'].str.contains(keyword, case=False, na=False)]
-        ]).head(5)        replies = []
+        ]).head(5)        
+        replies = []
         for _, row in matches.iterrows():
             texts = [f"🎰 遊戲：{row['Title']}"]
             if pd.notna(row.get("RTP")):
